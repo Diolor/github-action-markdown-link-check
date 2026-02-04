@@ -134,18 +134,19 @@ check_additional_files () {
 
    if [ -n "$FILES" ]; then
       if [ "$MAX_DEPTH" -ne -1 ]; then
-         FIND_CALL=('find' ${FOLDERS} '-type' 'f' '(' ${FILES} ')' '-not' '-path' './node_modules/*' '-maxdepth' "${MAX_DEPTH}" '-exec' 'markdown-link-check' '{}')
+         FIND_CMD=('find' ${FOLDERS} '-type' 'f' '(' ${FILES} ')' '-not' '-path' './node_modules/*' '-maxdepth' "${MAX_DEPTH}")
       else
-         FIND_CALL=('find' ${FOLDERS} '-type' 'f' '(' ${FILES} ')' '-not' '-path' './node_modules/*' '-exec' 'markdown-link-check' '{}')
+         FIND_CMD=('find' ${FOLDERS} '-type' 'f' '(' ${FILES} ')' '-not' '-path' './node_modules/*')
       fi
 
+      FIND_CALL=('markdown-link-check')
       add_options
 
-      FIND_CALL+=(';')
-
-      set -x
-      "${FIND_CALL[@]}" &>> error.txt || true
-      set +x
+      while IFS= read -r -d '' file; do
+         printf "." >&2
+         "${FIND_CALL[@]}" "$file" &>> error.txt || true
+      done < <("${FIND_CMD[@]}" -print0)
+      printf "\n" >&2
 
    fi
 
@@ -184,12 +185,14 @@ if [ "$CHECK_MODIFIED_FILES" = "yes" ]; then
    for i in "${FILE_ARRAY[@]}"
       do
          if [ "${i##*.}" == "${FILE_EXTENSION#.}" ]; then
+            printf "." >&2
             FIND_CALL+=("${i}")
             COMMAND="${FIND_CALL[*]}"
             $COMMAND &>> error.txt || true
             unset 'FIND_CALL[${#FIND_CALL[@]}-1]'
          fi
       done
+   printf "\n" >&2
 
    check_additional_files
 
@@ -198,18 +201,19 @@ if [ "$CHECK_MODIFIED_FILES" = "yes" ]; then
 else
 
    if [ "$5" -ne -1 ]; then
-      FIND_CALL=('find' ${FOLDERS} '-name' '*'"${FILE_EXTENSION}" '-not' '-path' './node_modules/*' '-maxdepth' "${MAX_DEPTH}" '-exec' 'markdown-link-check' '{}')
+      FIND_CMD=('find' ${FOLDERS} '-name' '*'"${FILE_EXTENSION}" '-not' '-path' './node_modules/*' '-maxdepth' "${MAX_DEPTH}")
    else
-      FIND_CALL=('find' ${FOLDERS} '-name' '*'"${FILE_EXTENSION}" '-not' '-path' './node_modules/*' '-exec' 'markdown-link-check' '{}')
+      FIND_CMD=('find' ${FOLDERS} '-name' '*'"${FILE_EXTENSION}" '-not' '-path' './node_modules/*')
    fi
 
+   FIND_CALL=('markdown-link-check')
    add_options
 
-   FIND_CALL+=(';')
-
-   set -x
-   "${FIND_CALL[@]}" &>> error.txt || true
-   set +x
+   while IFS= read -r -d '' file; do
+      echo -e "${BLUE}Checking: ${file}${NC}" >&2
+      "${FIND_CALL[@]}" "$file" &>> error.txt || true
+   done < <("${FIND_CMD[@]}" -print0)
+   printf "\n" >&2
 
    check_additional_files
 
